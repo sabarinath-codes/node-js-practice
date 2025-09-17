@@ -1,47 +1,37 @@
-# Node JS
+# ExpressJs
 
-→ **Node.js is single-threaded**, but it can handle many operations concurrently (like async I/O, timers, promises, etc.).
+- Express.js is a **web framework for Node.js**.
+- It **sits on top of Node’s `http` module**, making it easier to build APIs and web applications.
+- Instead of writing raw `http.createServer(...)`, you can use Express which provides:
+    - **Simplified routing** (`app.get('/path', ...)`)
+    - **Middleware support** (for logging, parsing JSON, authentication, etc.)
+    - **Error handling**
+    - **Better structure for large applications**
 
-### Event loops
+### Express app structure
 
-→ Has multiple type of phases
+- `app` → main Express application.
+- `app.METHOD(path, handler)` → route handlers (`METHOD` = GET, POST, PUT, DELETE).
+- `req` → request object (incoming data).
+- `res` → response object (send data back).
+- `app.listen(port)` → start the server.
 
-- Timer - Handle the process like SetTimeout, setImmediate
-- Pending call-back - Execute I/O
-- Idle - Internal, we can’t use.
-- Poll - Heart of event loop and wait for I/O and execute it.
-- Check - Execute call back sechduled by setTimeout, etc..
-- Close - Executes close events.
-
-The phase execution divide into two
-
-- **Macrotasks** → timers, I/O, setImmediate, etc. (event loop phases).
-- **Microtasks** → `process.nextTick()`, `Promise.then()` callbacks. Run before moving to next tasks
-
-### Macro vs Micro tasks
-
-- **Macrotasks** → callbacks scheduled in the **event loop phases**:
-    - `setTimeout`
-    - `setInterval`
-    - `setImmediate`
-    - I/O callbacks
-    - Close events
-- **Microtasks** → callbacks that run **between macrotasks** (before moving to the next phase):
-    - `process.nextTick`
-    - `Promise.then`, `async/await` resolution
-    - `queueMicrotask`
-
-> **Rule: After each macrotask completes, Node.js empties the microtask queue.**
+> **Express is just an abstraction layer on top of Node’s `http` module** that makes web development easier.
 > 
 
-**Explanation**
+## Middleware
 
-1. **`process.nextTick`** → Runs **immediately after the current operation**, before the event loop continues.
-    
-    It has **highest priority** (it can even starve the event loop if abused).
-    
-2. **Promises** (`.then`) → Microtasks too, but **processed after all `nextTick` callbacks**.
-3. **`setTimeout(fn, 0)`** → Goes into the **timers phase**, but "0ms" does **not mean immediately**.
-    - It means: “Run this callback after **at least 0ms** and after the current phase ends.”
-    - The event loop won’t touch it until the **timers phase** comes around.
-4. **`setImmediate`** → Goes into the **check phase**, which happens **after poll** (so after timers, usually).
+A middleware function is just a function that runs between the incoming request (`req`) and the outgoing response (`res`).
+
+- `req` → request object (incoming data).
+- `res` → response object (what we send back).
+- `next()` → a function that calls the **next middleware in the chain**.
+
+**Types of middleware**
+
+1. Application level
+2. Route level
+3. In-build
+4. Third-party
+5. Custom
+6. Error handling
