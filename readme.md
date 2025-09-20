@@ -126,15 +126,12 @@ The auth is classified into two,
 5. **Server verifies** → checks token signature + expiry → grants/denies access.
 6. **Logout** → client just discards token (server has no session to clear).
 
----
-
 **🔑 Security Points**
 
 - Tokens should **expire quickly** (use refresh tokens if needed).
 - Always use **HTTPS** (prevents token sniffing).
 - Do not store JWT in `localStorage` (XSS risk). Prefer **HttpOnly cookies** or memory.
 
----
 
 **🔑 Frontend Usage**
 
