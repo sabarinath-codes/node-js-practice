@@ -16,11 +16,11 @@ app.use("/users", (req, res, next) => {
 });
 
 //#3. Built-in middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json()); //used to parse the raw json from client request
+app.use(express.urlencoded({ extended: true })); // used to parse the data sent using HTML forms
 
 //#4. Third-party middleware
-app.use(morgan("dev"));
+app.use(morgan("dev")); // used to log the request and response
 
 //#5. Error handling middleware
 app.use("/account", (req, res, next) => {
@@ -38,6 +38,8 @@ app.use((req, res, next) => {
     console.log("Custom middleware : ", req.url);
     next();
 });
+
+app.use("/static", express.static("public")); //server static files from the public folder
 
 
 app.get("/", (req, res) => {

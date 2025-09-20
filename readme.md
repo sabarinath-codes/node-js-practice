@@ -35,3 +35,7 @@ A middleware function is just a function that runs between the incoming request 
 4. Third-party
 5. Custom
 6. Error handling
+
+express.json() → Parses **JSON data** (like from `fetch` or `axios` with `application/json` header).
+
+express.urlencoded() → Parses data sent using **HTML forms** (with `application/x-www-form-urlencoded` content type).
