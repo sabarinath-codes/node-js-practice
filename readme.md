@@ -139,7 +139,7 @@ The auth is classified into two,
 
 **Example:**
 
-````
+```
     fetch("http://localhost:3000/jwt/users", {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
