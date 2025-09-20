@@ -109,7 +109,6 @@ The auth is classified into two,
     
     ```
     header.payload.signature
-    
     ```
     
     - Header → algo & type
@@ -120,7 +119,6 @@ The auth is classified into two,
     
     ```
     Authorization: Bearer <token>
-    
     ```
     
 5. **Server verifies** → checks token signature + expiry → grants/denies access.
