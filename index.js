@@ -1,53 +1,75 @@
 const express = require("express");
 const morgan = require("morgan");
+const session = require("express-session");
 
 const app = express();
-
-//#1. Application level middleware
-app.use((req, res, next) => {
-    console.log("Application level middleware : ", req.url);
-    next();
-});
-
-//#2. Router level middleware
-app.use("/users", (req, res, next) => {
-    console.log("Router level middleware : ", req.url);
-    next();
-});
-
-//#3. Built-in middleware
-app.use(express.json()); //used to parse the raw json from client request
-app.use(express.urlencoded({ extended: true })); // used to parse the data sent using HTML forms
-
-//#4. Third-party middleware
-app.use(morgan("dev")); // used to log the request and response
-
-//#5. Error handling middleware
-app.use("/account", (req, res, next) => {
-    console.log("Account level middleware : ", req.url);
-    next({ message: "Throw a error" });
-});
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan("dev"));
 
 app.use((err, req, res, next) => {
-    console.log("Error handling middleware : ", err.message);
-    res.status(500).send("Something went wrong");
+    console.error(err.stack);
+    res.status(500).send("Something broke!");
 });
-
-//#6. Custom middleware
-app.use((req, res, next) => {
-    console.log("Custom middleware : ", req.url);
-    next();
-});
-
-app.use("/static", express.static("public")); //server static files from the public folder
-
 
 app.get("/", (req, res) => {
-    res.send("<h1>Hello World</h1>");
+    res.status(200).send("<h1>Hello World! Welcome to Sabari's Server</h1>");
 });
 
-app.get("/users", (req, res) => {
-    res.send("<h1>User Page</h1>");
+//session auth
+const sessionAuthSecretKey = "sessionAuth123";
+const users = []; //dummy users
+
+//session middleware
+const sessionMiddleware = session({
+    secret: sessionAuthSecretKey, //used to sign the session id
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false } //true only in https
 });
+
+app.use("/session/users", sessionMiddleware); //assigns the session middleware to the users route
+
+app.get("/session/users", (req, res) => {
+    if (!req.session.user) {
+        return res.status(401).send("Unauthorized");
+    }
+    res.status(200).send(users);
+});
+
+app.get("/session/users/:id", (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    console.log("Id: ", id);
+    const user = users.find(user => user.id === id);
+    if (!user) {
+        return res.status(404).send("User not found");
+    }
+    res.status(200).send(user);
+});
+
+app.post("/session/users/register", (req, res) => {
+    console.log("Request body: ", req.body);
+    const { username, password } = req.body;
+    users.push({ id: users.length + 1, username, password });
+    res.status(201).send({ message: "User registered successfully" });
+});
+
+app.post("/session/users/login", (req, res) => {
+    const { username, password } = req.body;
+    const user = users.find(user => user.username === username && user.password === password);
+    if (user) {
+        req.session.user = user;
+        res.status(200).send({ message: "User logged in successfully" });
+    } else {
+        res.status(401).send("Invalid username or password");
+    }
+});
+
+app.post("/session/users/logout", (req, res) => {
+    req.session.destroy();
+    res.status(200).send("Logged out");
+});
+
+
 
 app.listen(3000, () => console.log("Server is running on port 3000"));

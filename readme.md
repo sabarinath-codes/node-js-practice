@@ -1,41 +1,82 @@
-# ExpressJs
+## Auth
 
-- Express.js is a **web framework for Node.js**.
-- It **sits on top of Node’s `http` module**, making it easier to build APIs and web applications.
-- Instead of writing raw `http.createServer(...)`, you can use Express which provides:
-    - **Simplified routing** (`app.get('/path', ...)`)
-    - **Middleware support** (for logging, parsing JSON, authentication, etc.)
-    - **Error handling**
-    - **Better structure for large applications**
+The auth is classified into two,
 
-### Express app structure
+- Authentication
+- Authorization
 
-- `app` → main Express application.
-- `app.METHOD(path, handler)` → route handlers (`METHOD` = GET, POST, PUT, DELETE).
-- `req` → request object (incoming data).
-- `res` → response object (send data back).
-- `app.listen(port)` → start the server.
+**Authentication (AuthN)**
 
-> **Express is just an abstraction layer on top of Node’s `http` module** that makes web development easier.
-> 
+- Authentication is the process of **proving your identity** to a system.
+- Who are you?
 
-## Middleware
+**Authorization (AuthZ)**
 
-A middleware function is just a function that runs between the incoming request (`req`) and the outgoing response (`res`).
+- Authorization is about **deciding what you can access or do** *after* you’re authenticated.
+- What are you allowed to do?
 
-- `req` → request object (incoming data).
-- `res` → response object (what we send back).
-- `next()` → a function that calls the **next middleware in the chain**.
+### Authentication methods
 
-**Types of middleware**
+- Stateful (Session + Cookies)
+- Stateless (JWT)
 
-1. Application level
-2. Route level
-3. In-build
-4. Third-party
-5. Custom
-6. Error handling
+### Stateful Authentication
 
-express.json() → Parses **JSON data** (like from `fetch` or `axios` with `application/json` header).
+**Server remembers session state** for every logged-in user.
 
-express.urlencoded() → Parses data sent using **HTML forms** (with `application/x-www-form-urlencoded` content type).
+**How it works:**
+
+1. You log in with username & password.
+2. Server verifies and creates a **session record** in memory or DB.
+    - Example: `{ userId: 101, sessionId: 'abc123' }`
+3. Server sends a **session ID** back to you, stored in a **cookie**.
+4. Every request → you send cookie → server looks up session in DB/memory → ✅ valid.
+
+**How to secure sessions:**
+
+- Use **HTTPS** (so cookies aren’t sniffed in network).
+- Use **HttpOnly cookies** → JavaScript can’t access them.
+- Use **Secure cookies** → only sent over HTTPS.
+- Rotate session IDs after login.
+- Use short expiry and revalidation.
+
+**🔑 Session Auth – Behind the Scenes (BTS)**
+
+1. **Login** → client sends username & password → server verifies → creates a `sessionId`.
+2. **Server stores** → `sessionId` linked with user in memory/DB.
+3. **Response** → server sends back cookie:
+    
+    ```
+    Set-Cookie: sessionId=xyz; HttpOnly; Secure; SameSite=Strict
+    ```
+    
+4. **Subsequent requests** → browser automatically attaches cookie:
+    
+    ```
+    Cookie: sessionId=xyz
+    ```
+    
+    Server validates and returns data.
+    
+5. **Logout** → session removed from server → cookie becomes invalid.
+
+**🔑 Cookie Security Flags**
+
+- `HttpOnly` → cannot be accessed by JS (prevents XSS).
+- `Secure` → only via HTTPS.
+- `SameSite=Strict` → blocks CSRF by not sending cookies cross-site.
+
+**🔑 Frontend Usage**
+
+- Use `credentials: "include"` in `fetch`/`axios` so cookies travel with requests.
+
+**Example:**
+
+```
+    fetch("http://localhost:3000/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "john", password: "1234" }),
+    credentials: "include"   // 🔥 important
+    });
+```
