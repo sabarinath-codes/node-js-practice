@@ -143,3 +143,94 @@ The auth is classified into two,
         headers: { Authorization: `Bearer ${token}` },
     });
 ```
+
+--
+
+
+## JWT - Deep dive
+
+### 1. JWT Structure
+
+A JWT looks like this:
+
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+.eyJpZCI6MSwidXNlcm5hbWUiOiJqb2huIiwiZXhwIjoxNzMwMjc4NjAwfQ
+.dBjqtjB_OsqjoF3aTqvjxjXAmPnOEyVXZRUqI2Q3VQw
+```
+
+👉 Split into **3 parts** (Base64 encoded):
+
+1. **Header** → `{ "alg": "HS256", "typ": "JWT" }`
+    - Tells which algorithm was used to sign.
+2. **Payload (claims)** → `{ "id": 1, "username": "john", "exp": 1730278600 }`
+    - Contains **user data** + expiry (`exp`).
+    - ⚠️ Visible to anyone who has the token (Base64 is not encryption).
+3. **Signature** → created using secret key.
+    - Ensures token can’t be tampered with.
+
+### 2. JWT Signing & Verification
+
+- **Signing (on login):**
+    
+    ```jsx
+    jwt.sign({ id: user.id }, secretKey, { expiresIn: "15m" });
+    ```
+    
+    - Payload + secret key + algorithm → signature.
+- **Verification (on requests):**
+    
+    ```jsx
+    jwt.verify(token, secretKey, (err, decoded) => {
+      if (err) return res.sendStatus(403);
+      console.log(decoded); // { id: 1, username: "john", iat: ..., exp: ... }
+    });
+    ```
+    
+
+If the signature doesn’t match (tampered token) or expired → rejected. ✅
+
+### 3. JWT Expiry
+
+- You **must set expiry** (e.g., `15m`, `1h`, `1d`).
+- If token never expires → huge security risk (if stolen, attacker has lifetime access).
+
+### 4. JWT Storage (Frontend)
+
+Options:
+
+- **LocalStorage / SessionStorage** → easy but vulnerable to XSS.
+- **HttpOnly Cookie** → safest, because JS can’t access it.
+- **Memory (React state)** → safest in SPA, but lost on refresh.
+
+### 5. JWT Limitations
+
+- If stolen, attacker can use until expiry.
+- Can’t be invalidated easily (server doesn’t store them).
+- Payload is visible (so don’t put sensitive info like passwords).
+
+### Using JWT tokens at cookies
+
+**How it’s works?**
+
+- Server sends JWT **inside a cookie** instead of JSON response.
+- Browser stores it automatically (you don’t need frontend code).
+- On each request, browser automatically sends the cookie back.
+- Server extracts token from cookie → verifies → grants access.
+- On logout, cookie is cleared.
+
+**🔑 Key Differences vs Header Method**
+
+1. **No manual `Authorization: Bearer` header needed**
+    - Browser automatically sends cookies with each request.
+2. **Frontend must allow cookies**
+    - Add `credentials: "include"` (or `axios` → `{ withCredentials: true }`) to make sure cookies are sent across domains.
+
+**🛠 Flow**
+
+1. User logs in → server creates both:
+    - Access token (stored in HttpOnly cookie OR memory).
+    - Refresh token (stored in HttpOnly cookie, or DB).
+2. Access token expires → client silently sends refresh token to get new access token.
+3. Refresh token expires → user must log in again.
+4. On logout → both tokens cleared.
