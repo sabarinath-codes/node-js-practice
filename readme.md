@@ -234,3 +234,47 @@ Options:
 2. Access token expires → client silently sends refresh token to get new access token.
 3. Refresh token expires → user must log in again.
 4. On logout → both tokens cleared.
+
+
+### 🚦 Rate Limiting (with Redis)
+
+**What is Rate Limiting?**
+
+Rate limiting is a technique to **control the number of requests** a user, client, or IP can make to your server within a specific time frame.
+
+It helps **prevent abuse**, such as spamming APIs, brute-force attacks, or DDoS.
+
+**Why Do We Use It?**
+
+- Protects the server from overload.
+- Ensures fair usage of APIs.
+- Improves security (stops brute-force login attempts).
+- Saves cost in production environments (e.g., AWS/Lambda/DynamoDB calls).
+
+**Implementation Flow (with Redis)**
+
+1. **Identify client** → usually by IP address or user ID.
+2. **Generate a unique key** → e.g., `ratelimit:<ip>`.
+3. **Check Redis for count**:
+    - If key exists → increment request count.
+    - If count exceeds the limit → block request (`429 Too Many Requests`).
+4. **If key doesn’t exist** → create it with value `1` and attach **TTL (time-to-live)**.
+    - TTL = window duration (e.g., 60 sec).
+    - After TTL expires, Redis automatically deletes the key → counter resets.
+
+**Example Flow**
+
+- Limit: **5 requests per minute** per IP.
+- Request comes → Redis key `ratelimit:127.0.0.1`.
+- First request → set key = `1`, TTL = 60 sec.
+- Next requests → increment key.
+- If `>5` within TTL → return **429 error**.
+- After 60 sec → key auto-expires → user gets fresh quota.
+
+**Packages vs Native**
+
+- **Native Redis**: Manual implementation (flexible, more control).
+- **Packages**: e.g., `express-rate-limit`, `rate-limiter-flexible`.
+    - Faster to implement.
+    - Handles advanced strategies (sliding window, token bucket).
+    - Less boilerplate code.
