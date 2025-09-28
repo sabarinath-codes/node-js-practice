@@ -1,86 +1,51 @@
-const express = require("express");
 require("dotenv").config();
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
-const router = express.Router();
-const { authenticateToken } = require("./middleware.js");
-const { generateTokens } = require("./helpers.js");
 
-const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
+const express = require("express");
+const router = express.Router();
+
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const argon2 = require("argon2");
 
 const users = []; //local db
-const refreshtokenStorage = new Map(); //local refresh token db
 
-router.post("/register", (req, res) => {
+//bcrypt password hashing
+router.post("/bcrypt", async (req, res) => {
     const { username, password } = req.body;
-    const existingUser = users.find((user) => user.username === username);
-    if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
-    }
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    users.push({ id: new Date().getTime(), username, password: hashedPassword });
-    res.status(201).json({ message: "User registered successfully" });
+    const salt = await bcrypt.genSalt(10); //salt - random strings added to the password - 10 rounds
+    const hashedPassword = await bcrypt.hash(password, salt);
+    users.push({ username, password: hashedPassword });
+    res.status(200).json({ hashedPassword });
 });
 
-router.post("/login", (req, res) => {
+//scrypt password hashing
+router.post("/scrypt", async (req, res) => {
     const { username, password } = req.body;
-    const user = users.find((user) => user.username === username);
-    if (!user) {
-        return res.status(401).json({ message: "Invalid username or password" });
-    }
-    const isPasswordValid = bcrypt.compareSync(password, user.password);
-    if (!isPasswordValid) {
-        return res.status(401).json({ message: "Invalid username or password" });
-    }
-
-    const { accessToken, refreshToken } = generateTokens(user.id); //generate tokens
-
-    refreshtokenStorage.set(user.id, refreshToken); //save the refresh token to the map
-
-    //set the access token to the cookie
-    res.cookie("accessToken", accessToken, { httpOnly: true, secure: false, sameSite: "strict" }); //secure is false for development
-    res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: false, sameSite: "strict" }); //secure is false for development
-
-    res.status(200).json({ message: "Login successful" });
+    const salt = crypto.randomBytes(16).toString("hex"); //salt - random strings added to the password
+    const hashedPassword = crypto.scryptSync(password, salt, 64).toString("hex"); // 64 - length of the hash
+    users.push({ username, password: hashedPassword });
+    res.status(200).json({ hashedPassword });
 });
 
-router.post("/refresh-token", (req, res) => {
-    const refreshToken = req.cookies?.refreshToken;
-    if (!refreshToken) {
-        return res.status(401).json({ message: "Unauthorized", error: "Refresh token is required" });
-    }
-
-    jwt.verify(refreshToken, refreshTokenSecret, (err, user) => {
-        if (err) {
-            return res.status(401).json({ message: "Unauthorized", error: err.message });
-        }
-
-        const storedRefreshToken = refreshtokenStorage.get(user.userId);
-        if (!storedRefreshToken || storedRefreshToken !== refreshToken) {
-            return res.status(401).json({ message: "Unauthorized", error: "Invalid refresh token" });
-        }
-        const { accessToken, refreshToken: newRefreshToken } = generateTokens(user.userId); //generate new tokens
-        refreshtokenStorage.set(newRefreshToken, user.userId);
-        res.cookie("accessToken", accessToken, { httpOnly: true, secure: false, sameSite: "strict" }); //set the access token to the cookie 
-        res.cookie("refreshToken", newRefreshToken, { httpOnly: true, secure: false, sameSite: "strict" });
-
-        res.status(200).json({ message: "Refresh token successful" });
-    })
+//argon2 password hashing
+router.post("/argon2", async (req, res) => {
+    const { username, password } = req.body;
+    const hashedPassword = await argon2.hash(password, {
+        type: argon2.argon2id,
+        memoryCost: 2 ** 16, // memory cost - 64MB
+        timeCost: 3, // time cost - 3 seconds
+        parallelism: 1, // parallelism - 1 thread
+        outputLength: 32, // output length - 32 bytes
+        saltLength: 16, // salt length - 16 bytes
+        hashLength: 32, // hash length - 32 bytes
+        salt: crypto.randomBytes(16), // salt - random strings added to the password
+    });
+    users.push({ username, password: hashedPassword });
+    res.status(200).json({ hashedPassword });
 });
 
-router.get("/", authenticateToken, (req, res) => {
+router.get("/users", (req, res) => {
     res.status(200).json({ users });
-});
-
-router.post("/logout", authenticateToken, (req, res) => {
-    const refreshToken = req.cookies?.refreshToken;
-    if (!refreshToken) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-    refreshtokenStorage.delete(req.userId);
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
-    res.status(200).json({ message: "Logout successful" });
 });
 
 module.exports = router;

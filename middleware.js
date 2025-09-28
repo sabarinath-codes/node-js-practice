@@ -1,23 +1,7 @@
 require("dotenv").config();
-const jwt = require("jsonwebtoken");
 const redis = require("redis");
 
-const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
 const redisServer = process.env.REDIS_SERVER;
-
-const authenticateToken = (req, res, next) => {
-    const token = req.cookies?.accessToken;
-    if (!token) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-    jwt.verify(token, accessTokenSecret, (err, user) => {
-        if (err) {
-            return res.status(401).json({ message: "Unauthorized" });
-        }
-        req.userId = user.userId;
-        next();
-    });
-}
 
 //rate limiting using Redis
 const redisClient = redis.createClient({ url: redisServer });
@@ -57,4 +41,4 @@ const rateLimiter = async (req, res, next) => {
     }
 }
 
-module.exports = { authenticateToken, rateLimiter };
+module.exports = { rateLimiter };
